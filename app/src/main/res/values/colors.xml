@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+
+    <color name="home">#0076ff</color>
+    <color name="home1">#aaaaaa</color>
+    <color name="hui">#f7f7f7</color>
+    <color name="bai">#ffffff</color>
+    <color name="hei">#333333</color>
+    <color name="huang">#ffcc00</color>
+
+    <color name="half_transparent_black">#BB000000</color>
+    <color name="line_and_outline_grey">#d9d9d9</color>
+    <color name="touming">#30000000</color>
+</resources>
