@@ -3,6 +3,9 @@ package com.sdjr.mdq.ui.jdr;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -17,12 +20,15 @@ import com.sdjr.mdq.R;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
-public class JDRActivity extends AppCompatActivity implements ViewPager.OnPageChangeListener{
+public class JDRActivity extends AppCompatActivity {
 
     @Bind(R.id.jdr_lin1_img1)
     ImageView jdrLin1Img1;
@@ -52,23 +58,33 @@ public class JDRActivity extends AppCompatActivity implements ViewPager.OnPageCh
     ImageView jdrImg01;
     @Bind(R.id.jdr_viewpager)
     ViewPager jdrViewpager;
+    @Bind(R.id.dot_0)
+    View dot0;
+    @Bind(R.id.dot_1)
+    View dot1;
+    @Bind(R.id.dot_2)
+    View dot2;
     private int lin1 = 1;
     private int lin2 = 1;
     private int lin3 = 1;
-    private int []imageIdArray;//图片资源的数组
-    private List<View> viewList;//图片资源的集合
-    private ViewGroup vg;//放置圆点
+    int oldPosition;
 
-    //实例化原点View
-    private ImageView iv_point;
-    private ImageView []ivPointArray;
-    private boolean isLooper;
+    private int[] imageIds = new int[]{R.drawable.viewpager1,
+            R.drawable.viewpager2,
+            R.drawable.viewpager3};
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        isLooper = false;
-    }
+    private List<ImageView> mImageViewList;
+    private List<View> dots;
+    private int currentItem;
+
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            jdrViewpager.setCurrentItem(currentItem, true);
+        }
+    };
+    private ScheduledExecutorService scheduledExecutorService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,130 +99,111 @@ public class JDRActivity extends AppCompatActivity implements ViewPager.OnPageCh
         }
         setContentView(R.layout.activity_jdr);
         ButterKnife.bind(this);
-        jdrImg01.setOnClickListener(new View.OnClickListener() {
+
+        mImageViewList = new ArrayList<>();
+        for (int i = 0; i < imageIds.length; i++) {
+            ImageView mImageView = new ImageView(this);
+            mImageView.setBackgroundResource(imageIds[i]);
+            mImageViewList.add(mImageView);
+        }
+
+        dots = new ArrayList<>();
+        dots.add(dot0);
+        dots.add(dot1);
+        dots.add(dot2);
+
+        ViewPagerAdapter mAdapter = new ViewPagerAdapter();
+        jdrViewpager.setAdapter(mAdapter);
+
+        jdrViewpager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
             @Override
-            public void onClick(View view) {
-                JDRActivity.this.finish();
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+                dots.get(position).setBackgroundResource(R.mipmap.full_holo);
+                dots.get(oldPosition).setBackgroundResource(R.mipmap.empty_holo);
+
+                oldPosition = position;
+
+                currentItem=position;
+
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+
             }
         });
-
-        //加载ViewPager
-        initViewPager();
-
-        //加载底部圆点
-        initPoint();
-
-        //修改添加设置ViewPager的当前页，为了保证左右轮播
-        jdrViewpager.setCurrentItem(0);
-        //开启一个线程，用于循环
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                isLooper = true;
-                while (isLooper){
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            //这里是设置当前页的下一页
-                            if (jdrViewpager!=null){
-                                jdrViewpager.setCurrentItem(jdrViewpager.getCurrentItem() + 1);
-                            }
-                        }
-                    });
-                }
-            }
-        }).start();
     }
-    /**
-     * 加载底部圆点
-     */
-    private void initPoint() {
-        //这里实例化LinearLayout
-        vg = (ViewGroup) findViewById(R.id.guide_ll_point);
-        //根据ViewPager的item数量实例化数组
-        ivPointArray = new ImageView[viewList.size()];
-        //循环新建底部圆点ImageView，将生成的ImageView保存到数组中
-        int size = viewList.size();
-        for (int i = 0;i<size;i++){
-            iv_point = new ImageView(this);
-            iv_point.setLayoutParams(new ViewGroup.LayoutParams(20,20));
-            iv_point.setPadding(30,0,30,0);//left,top,right,bottom
-            ivPointArray[i] = iv_point;
-            //第一个页面需要设置为选中状态，这里采用两张不同的图片
-            if (i == 0){
-                iv_point.setBackgroundResource(R.mipmap.full_holo);
-            }else{
-                iv_point.setBackgroundResource(R.mipmap.empty_holo);
-            }
-            //将数组中的ImageView加入到ViewGroup
-            vg.addView(ivPointArray[i]);
+
+    private class ViewPagerAdapter extends PagerAdapter {
+
+        @Override
+        public int getCount() {
+            return imageIds.length;
+        }
+
+        @Override
+        public boolean isViewFromObject(View view, Object object) {
+            return view == object;
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            container.addView(mImageViewList.get(position));
+            return mImageViewList.get(position);
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            container.removeView(mImageViewList.get(position));
         }
     }
 
-    /**
-     * 加载图片ViewPager
-     */
-    private void initViewPager() {
-        //实例化图片资源
-        imageIdArray = new int[]{R.drawable.viewpager1,R.drawable.viewpager2,R.drawable.viewpager3};
-        viewList = new ArrayList<>();
-        //获取一个Layout参数，设置为全屏
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.MATCH_PARENT);
+    private class ViewPagerTask implements Runnable {
+        @Override
+        public void run() {
+            currentItem = (currentItem + 1) % imageIds.length;
 
-        //循环创建View并加入到集合中
-        int len = imageIdArray.length;
-        for (int i = 0;i<len;i++){
-            //new ImageView并设置全屏和图片资源
-            ImageView imageView = new ImageView(this);
-            imageView.setLayoutParams(params);
-            imageView.setBackgroundResource(imageIdArray[i]);
-
-            //将ImageView加入到集合中
-            viewList.add(imageView);
-        }
-
-        //View集合初始化好后，设置Adapter
-        jdrViewpager.setAdapter(new GuidePageAdapter(viewList));
-        //设置滑动监听
-        jdrViewpager.setOnPageChangeListener(this);
-    }
-
-
-    @Override
-    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-
-    }
-
-    /**
-     * 滑动后的监听
-     * @param position
-     */
-    @Override
-    public void onPageSelected(int position) {
-        //修改全部的position长度
-        int newPosition = position % viewList.size();
-
-        //循环设置当前页的标记图
-        int length = imageIdArray.length;
-        for (int i = 0; i < length; i++) {
-            ivPointArray[newPosition].setBackgroundResource(R.mipmap.full_holo);
-            if (newPosition != i) {
-                ivPointArray[i].setBackgroundResource(R.mipmap.empty_holo);
-            }
+            mHandler.sendEmptyMessage(0);
         }
     }
 
     @Override
-    public void onPageScrollStateChanged(int state) {
+    protected void onStart() {
+        super.onStart();
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
+        scheduledExecutorService.scheduleWithFixedDelay(
+                new ViewPagerTask(),
+                2,
+                2,
+                TimeUnit.SECONDS
+        );
     }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+            scheduledExecutorService = null;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+            scheduledExecutorService = null;
+        }
+        ButterKnife.unbind(this);
+    }
+
     @OnClick({R.id.jdr_lin1, R.id.jdr_lin3, R.id.jdr_lin5})
     public void onViewClicked(View view) {
         switch (view.getId()) {
